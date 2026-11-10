@@ -52,6 +52,46 @@ th,td{padding:8px 5px}
 input{border:0;padding:0}
 .total{color:black}
 }
+
+html{scroll-behavior:smooth;scroll-padding-top:90px}
+body{background:#edf4f7}
+header{background:linear-gradient(115deg,#104d62,#137b83)}
+input,select,textarea{font-size:16px}
+button{min-height:44px}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,a:focus-visible{outline:3px solid #efb649;outline-offset:3px}
+.quick-nav{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+.quick-nav a{padding:10px 14px;border-radius:9px;background:#ffffff20;color:white;text-decoration:none}
+.version{font-size:12px;opacity:.8;margin-top:12px}
+.summary-line{display:flex;justify-content:space-between;gap:15px;margin:12px 0;flex-wrap:wrap}
+.quote-options{background:#f2f7fa;padding:16px;border-radius:10px;margin-top:20px}
+#printNote{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6}
+.service-pager{justify-content:center}
+@media screen and (max-width:750px){
+  header{padding:22px 16px}.card{padding:16px}.grid{grid-template-columns:1fr}
+  #status{font-size:13px;padding:9px 12px;max-height:100px;overflow:auto}
+  .quick-nav a{flex:1;text-align:center;white-space:nowrap}
+  .table-wrap{overflow:visible}
+  .mobile-table,.mobile-table tbody,.mobile-table tr,.mobile-table td{display:block;width:100%}
+  .mobile-table thead{display:none}
+  .mobile-table tr{border:1px solid #d7e4ec;border-radius:12px;margin-bottom:14px;padding:12px;background:white}
+  .mobile-table td{border:0;padding:7px 0;overflow-wrap:anywhere}
+  .mobile-table td[data-label]:not(:first-child){display:grid;grid-template-columns:110px minmax(0,1fr);align-items:center;gap:8px}
+  .mobile-table td[data-label]:not(:first-child)::before{content:attr(data-label);font-size:13px;color:#526779}
+  .mobile-table td:last-child{display:flex!important;flex-wrap:wrap;gap:6px}
+  .mobile-table td:last-child::before{display:none}
+  .money{white-space:normal}.quote-input{max-width:100%;width:100%;min-width:0}
+  .actions button{flex:1 1 140px}.total{font-size:22px;line-height:1.5}
+  #printNote{font-size:14px}
+}
+@media print{
+ .quote-options{display:none}#printNote:empty{display:none}
+ .mobile-table{display:table}.mobile-table tbody{display:table-row-group}
+ .mobile-table tr{display:table-row;break-inside:avoid}.mobile-table td{display:table-cell}
+ .mobile-table td::before{display:none}.mobile-table thead{display:table-header-group}
+ .summary-line{font-size:13px}input{width:100%;min-width:0!important;font-size:12px}
+ .quote-input{max-width:110px}header{background:white;color:black}
+}
 </style>
 </head>
 <body>
@@ -59,6 +99,9 @@ input{border:0;padding:0}
 <div>
 <h1>Bảng giá và dự toán nha khoa</h1>
 <div>Quản lý dịch vụ · Tùy chỉnh đơn giá · Lập dự toán</div>
+<nav class="quick-nav no-print" aria-label="Đi tới chức năng">
+<a href="#serviceList">Bảng giá</a><a href="#estimateSection">Dự toán</a><a href="#serviceEditor">Thêm dịch vụ</a>
+</nav><div class="version no-print">Phiên bản 1.1 · Lưu riêng trên từng thiết bị</div>
 </div>
 </header>
 <div id="status" role="status" aria-live="polite">Đang đọc dữ liệu…</div>
@@ -85,7 +128,7 @@ Hãy tải bản sao lưu sau khi chỉnh sửa. Chỉ dùng tình huống giả
 </div>
 </section>
 
-<section class="card no-print">
+<section class="card no-print" id="serviceEditor">
 <h2 id="formTitle">Thêm dịch vụ</h2>
 <form id="serviceForm">
 <div class="grid">
@@ -122,7 +165,7 @@ Hãy tải bản sao lưu sau khi chỉnh sửa. Chỉ dùng tình huống giả
 </form>
 </section>
 
-<section class="card no-print">
+<section class="card no-print" id="serviceList">
 <h2>Danh sách dịch vụ <span id="count" class="count"></span></h2>
 <div class="grid" style="margin-bottom:16px">
 <label>Tìm dịch vụ
@@ -134,11 +177,11 @@ Hãy tải bản sao lưu sau khi chỉnh sửa. Chỉ dùng tình huống giả
 </div>
 <p class="muted">Dấu “+” là khoản cộng thêm. Chỉ thêm khoản này vào dự toán khi áp dụng cùng dịch vụ chính.</p>
 <div class="table-wrap">
-<table>
+<table class="mobile-table">
 <thead><tr><th>Dịch vụ</th><th>Đơn vị</th><th>Đơn giá (VNĐ)</th><th>Thao tác</th></tr></thead>
 <tbody id="servicesBody"></tbody>
-</table>
-</div>
+</table></div>
+<div class="actions service-pager"><button type="button" id="prevPage" class="secondary">Trang trước</button><span id="pageInfo" aria-live="polite"></span><button type="button" id="nextPage" class="secondary">Trang sau</button></div>
 </section>
 
 <section class="card" id="estimateSection">
@@ -149,14 +192,25 @@ Khoảng giá được cộng thành tổng thấp nhất và cao nhất.</p>
 Có thể chỉnh số lượng và giá riêng cho từng dòng.
 Sửa bảng giá không tự thay đổi các dòng dự toán đã thêm.</p>
 <div class="table-wrap">
-<table>
+<table class="mobile-table">
 <thead><tr>
 <th>Dịch vụ</th><th>Số lượng</th><th>Giá thấp nhất (VNĐ)</th><th>Giá cao nhất (VNĐ)</th><th>Thành tiền (VNĐ)</th><th class="no-print">Xóa</th>
 </tr></thead>
 <tbody id="quoteBody"></tbody>
 </table>
 </div>
+<div class="quote-options no-print">
+<div class="grid">
+<label>Cách giảm giá<select id="discountType"><option value="percent">Theo phần trăm (%)</option><option value="amount">Theo số tiền (VNĐ)</option></select></label>
+<label>Mức giảm<input id="discountValue" type="number" min="0" max="100" step="1" value="0"></label>
+</div>
+<p class="muted">Giảm trên toàn bộ dự toán. Phần trăm từ 0–100; số tiền giảm tối đa bằng tổng tiền từng mức giá.</p>
+<label>Ghi chú dự toán (chỉ dùng dữ liệu giả định)<textarea id="estimateNote" maxlength="2000" placeholder="Ví dụ: Dự toán minh họa; giá cần xác nhận sau thăm khám."></textarea></label>
+</div>
+<div class="summary-line"><span>Tạm tính</span><strong id="subtotal">0 ₫</strong></div>
+<div class="summary-line"><span id="discountLabel">Giảm giá</span><strong id="discountTotal">0 ₫</strong></div>
 <div id="total" class="total">Tổng dự toán: 0 ₫</div>
+<p id="printNote"></p>
 <div class="actions no-print">
 <button id="printBtn" type="button">In / Lưu PDF (tệp tài liệu)</button>
 <button id="clearQuoteBtn" type="button" class="secondary">Xóa toàn bộ dự toán</button>
@@ -315,6 +369,8 @@ const newId = () => {
 };
 let state;
 let editingId = null;
+let servicePage = 1;
+const PAGE_SIZE = 12;
 let storageBlocked = false;
 let knownRaw = null;
 
@@ -353,7 +409,7 @@ function defaults() {
       min:values[0], max:values[1] ?? values[0], addon, note
     });
   }
-  return {version:1,services,quote:[]};
+  return {version:1,services,quote:[],estimate:{discountType:"percent",discountValue:0,note:""}};
 }
 function textValid(value,max,allowEmpty=false) {
   return typeof value === "string" &&
@@ -373,6 +429,18 @@ function normalizeService(s) {
     id:s.id,category:s.category.trim(),name:s.name.trim(),
     unit:s.unit.trim(),min:s.min,max:s.max,addon:s.addon,note:s.note.trim()
   };
+}
+function normalizeEstimate(value) {
+  if (value === undefined) return {discountType:"percent",discountValue:0,note:""};
+  if (!value || !["percent","amount"].includes(value.discountType) ||
+      !Number.isSafeInteger(value.discountValue) || value.discountValue < 0 ||
+      value.discountValue > (value.discountType === "percent" ? 100 : LIMIT_PRICE) ||
+      !textValid(value.note,2000,true)) throw new Error("Mức giảm giá hoặc ghi chú không hợp lệ.");
+  return {discountType:value.discountType,discountValue:value.discountValue,note:value.note};
+}
+function afterDiscount(total,estimate) {
+  return estimate.discountType === "amount" ? Math.max(0,total-estimate.discountValue) :
+    Number((BigInt(total)*BigInt(100-estimate.discountValue)+50n)/100n);
 }
 function validate(data) {
   if (!data || data.version !== 1 || !Array.isArray(data.services) ||
@@ -396,7 +464,8 @@ function validate(data) {
   if (!Number.isSafeInteger(maxTotal)) {
     throw new Error("Tổng tiền vượt giới hạn tính toán.");
   }
-  return {version:1,services,quote};
+  const estimate = normalizeEstimate(data.estimate);
+  return {version:1,services,quote,estimate};
 }
 
 /* Chỉ cập nhật giao diện sau khi ghi thành công.
@@ -487,7 +556,12 @@ function renderServices() {
     (!group || s.category === group) &&
     fold([s.name,s.category,s.note].join(" ")).includes(query));
   $("count").textContent = "(" + items.length + "/" + state.services.length + ")";
-  for (const service of items) {
+  const pages = Math.max(1,Math.ceil(items.length/PAGE_SIZE));
+  servicePage = Math.min(Math.max(servicePage,1),pages);
+  $("pageInfo").textContent = "Trang " + servicePage + " / " + pages;
+  $("prevPage").disabled = servicePage === 1;
+  $("nextPage").disabled = servicePage === pages;
+  for (const service of items.slice((servicePage-1)*PAGE_SIZE,servicePage*PAGE_SIZE)) {
     const row = element("tr");
     const description = element("td");
     description.append(element("strong",service.name),
@@ -516,6 +590,7 @@ function renderServices() {
       },"danger")
     );
     row.append(description,element("td",service.unit),price,buttons);
+    [...row.children].forEach((cell,i)=>cell.dataset.label=["Dịch vụ","Đơn vị","Đơn giá","Thao tác"][i]);
     body.append(row);
   }
   if (!items.length) {
@@ -586,6 +661,7 @@ function renderQuote() {
       save(next,"Đã xóa dòng dự toán và lưu.");
     },"danger"));
     row.append(name,quantity,minCell,maxCell,sum,remove);
+    [...row.children].forEach((cell,i)=>cell.dataset.label=["Dịch vụ","Số lượng","Giá thấp nhất","Giá cao nhất","Thành tiền","Xóa"][i]);
     body.append(row);
     low += item.min*item.qty;
     high += item.max*item.qty;
@@ -597,7 +673,17 @@ function renderQuote() {
     row.append(cell);
     body.append(row);
   }
-  $("total").textContent = "Tổng dự toán: " + rangeText(low,high);
+  const estimate = state.estimate || normalizeEstimate();
+  const netLow = afterDiscount(low,estimate), netHigh = afterDiscount(high,estimate);
+  $("subtotal").textContent = rangeText(low,high);
+  $("discountLabel").textContent = estimate.discountType === "percent" ? "Giảm giá ("+estimate.discountValue+"%)" : "Giảm giá theo số tiền";
+  $("discountTotal").textContent = rangeText(Math.min(low-netLow,high-netHigh),Math.max(low-netLow,high-netHigh));
+  $("total").textContent = "Tổng dự toán: " + rangeText(netLow,netHigh);
+  $("discountType").value = estimate.discountType;
+  $("discountValue").max = estimate.discountType === "percent" ? 100 : LIMIT_PRICE;
+  $("discountValue").value = estimate.discountValue;
+  $("estimateNote").value = estimate.note;
+  $("printNote").textContent = estimate.note ? "Ghi chú: " + estimate.note : "";
 }
 function render() {
   renderGroups();
@@ -633,14 +719,30 @@ $("serviceForm").addEventListener("submit",event=>{
   if (save(next,"Đã lưu dịch vụ. Dự toán đã thêm trước đó giữ nguyên đơn giá.")) resetForm();
 });
 $("cancelBtn").addEventListener("click",resetForm);
-$("search").addEventListener("input",renderServices);
-$("groupFilter").addEventListener("change",renderServices);
+$("search").addEventListener("input",()=>{servicePage=1;renderServices();});
+$("groupFilter").addEventListener("change",()=>{servicePage=1;renderServices();});
+$("prevPage").addEventListener("click",()=>{servicePage--;renderServices();$("serviceList").scrollIntoView({behavior:"smooth"});});
+$("nextPage").addEventListener("click",()=>{servicePage++;renderServices();$("serviceList").scrollIntoView({behavior:"smooth"});});
+$("discountType").addEventListener("change",()=>{
+  const next=clone(state);
+  next.estimate={...(next.estimate||normalizeEstimate()),discountType:$("discountType").value,discountValue:0};
+  if(!save(next,"Đã đổi cách giảm giá; mức giảm được đặt về 0."))renderQuote();
+});
+function saveEstimateOptions(){
+  const next=clone(state);
+  const raw=$("discountValue").value.trim();
+  next.estimate={discountType:$("discountType").value,discountValue:raw==="" ? NaN : Number(raw),note:$("estimateNote").value};
+  if(!save(next,"Đã lưu giảm giá và ghi chú dự toán."))renderQuote();
+}
+$("discountValue").addEventListener("change",saveEstimateOptions);
+$("estimateNote").addEventListener("change",saveEstimateOptions);
 $("printBtn").addEventListener("click",()=>window.print());
 $("clearQuoteBtn").addEventListener("click",()=>{
   if (!state.quote.length || !confirm("Xóa toàn bộ các dòng dự toán hiện tại?")) return;
   const next = clone(state);
   next.quote = [];
-  save(next,"Đã xóa dự toán và lưu.");
+  next.estimate = normalizeEstimate();
+  save(next,"Đã xóa dự toán, giảm giá và ghi chú; bảng giá được giữ nguyên.");
 });
 function download(text,filename) {
   const blob = new Blob([text],{type:"application/json;charset=utf-8"});
