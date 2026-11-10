@@ -1,0 +1,1471 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bảng giá và dự toán nha khoa</title>
+<style>
+:root{font-family:Arial,sans-serif;color:#173047;background:#f2f6fa}
+*{box-sizing:border-box}
+body{margin:0}
+header{background:#125b70;color:white;padding:28px 20px}
+header>div,main{max-width:1200px;margin:auto}
+h1{margin:0 0 10px;font-size:28px}
+h2{margin:0 0 18px;font-size:21px}
+p{line-height:1.6}
+main{padding:20px}
+.card{background:white;padding:22px;border:1px solid #dbe4ec;border-radius:14px;margin-bottom:20px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+label{display:block;font-weight:bold;font-size:14px}
+input,select,textarea,button{font:inherit}
+input,select,textarea{display:block;width:100%;padding:11px;border:1px solid #b4c6d4;border-radius:7px;margin-top:6px;background:white;color:#173047}
+textarea{min-height:75px}
+button{border:0;border-radius:7px;padding:10px 15px;background:#12677d;color:white;cursor:pointer}
+button:hover{filter:brightness(.92)}
+button.secondary{background:#e7eef4;color:#173047}
+button.danger{background:#b43443}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;align-items:center}
+.table-wrap{overflow:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:12px 9px;border-bottom:1px solid #e1e8ee;vertical-align:top}
+th{background:#f0f6fa}
+td small{display:block;line-height:1.5;color:#526779;margin-top:5px}
+td button{padding:7px 10px;margin:2px}
+.money{white-space:nowrap}
+.muted{color:#526779;font-size:14px}
+.notice{padding:13px;background:#fff6dc;border-radius:8px;line-height:1.6}
+#status{position:sticky;top:0;z-index:5;background:#e5f5ec;padding:13px;border-bottom:1px solid #aacdb8;white-space:pre-wrap}
+#status.error{background:#fff0ef;border-color:#de9c97}
+.total{font-weight:bold;font-size:24px;color:#125b70;margin-top:16px}
+.quote-input{min-width:110px;max-width:170px;margin:0}
+.qty{min-width:75px;width:80px}
+.count{font-weight:normal;color:#526779;font-size:15px}
+[hidden]{display:none!important}
+@media(max-width:650px){.grid{grid-template-columns:1fr}main{padding:12px}.card{padding:16px}h1{font-size:23px}}
+@media print{
+header{background:white;color:black;padding:0}
+body{background:white}
+main{max-width:none;padding:0}
+.no-print,#status{display:none!important}
+.card{border:0;padding:10px 0}
+th,td{padding:8px 5px}
+input{border:0;padding:0}
+.total{color:black}
+}
+</style>
+</head>
+<body>
+<header>
+<div>
+<h1>Bảng giá và dự toán nha khoa</h1>
+<div>Quản lý dịch vụ · Tùy chỉnh đơn giá · Lập dự toán</div>
+</div>
+</header>
+<div id="status" role="status" aria-live="polite">Đang đọc dữ liệu…</div>
+<main>
+<section class="card no-print">
+<h2>Dữ liệu và bản sao lưu</h2>
+<p class="muted">
+Bảng giá ban đầu tham khảo
+<a href="https://nhakhoahello.vn/bang-gia/" target="_blank" rel="noopener noreferrer">Nha Khoa Hello</a>,
+ngày 10/11/2026. Giá và điều kiện bảo hành cần được xác nhận với phòng khám.
+Bạn có thể thay đổi bảng giá cho nhu cầu của mình.
+</p>
+<p class="notice">
+Dữ liệu lưu trong trình duyệt này, không tự chuyển sang máy khác.
+Xóa dữ liệu trình duyệt có thể làm mất bảng giá.
+Hãy tải bản sao lưu sau khi chỉnh sửa. Chỉ dùng tình huống giả định, không nhập dữ liệu bệnh nhân thật.
+</p>
+<div class="actions">
+<button id="exportBtn" type="button">Tải bản sao lưu</button>
+<button id="importBtn" type="button" class="secondary">Nhập bản sao lưu</button>
+<input id="importFile" type="file" accept=".json,application/json" hidden>
+<button id="restoreBtn" type="button" class="secondary">Khôi phục lần lưu trước</button>
+<button id="resetBtn" type="button" class="danger">Khôi phục bảng giá ban đầu</button>
+</div>
+</section>
+
+<section class="card no-print">
+<h2 id="formTitle">Thêm dịch vụ</h2>
+<form id="serviceForm">
+<div class="grid">
+<label>Nhóm dịch vụ
+<input id="category" list="categories" maxlength="150" required>
+<datalist id="categories"></datalist>
+</label>
+<label>Tên dịch vụ
+<input id="serviceName" maxlength="300" required>
+</label>
+<label>Đơn vị tính
+<input id="unit" maxlength="60" placeholder="Ví dụ: 1 răng, 1 hàm, 1 lần" required>
+</label>
+<label>Khoản cộng thêm
+<select id="addon">
+<option value="false">Không</option>
+<option value="true">Có — cộng vào dịch vụ chính</option>
+</select>
+</label>
+<label>Giá thấp nhất hoặc giá cố định (VNĐ)
+<input id="priceMin" type="number" min="0" max="10000000000" step="1" required>
+</label>
+<label>Giá cao nhất (VNĐ)
+<input id="priceMax" type="number" min="0" max="10000000000" step="1" placeholder="Để trống nếu là giá cố định">
+</label>
+</div>
+<label style="margin-top:14px">Ghi chú
+<textarea id="note" maxlength="1500" placeholder="Điều kiện áp dụng, bảo hành hoặc khoản chưa bao gồm"></textarea>
+</label>
+<div class="actions">
+<button type="submit">Lưu dịch vụ</button>
+<button id="cancelBtn" type="button" class="secondary" hidden>Hủy sửa</button>
+</div>
+</form>
+</section>
+
+<section class="card no-print">
+<h2>Danh sách dịch vụ <span id="count" class="count"></span></h2>
+<div class="grid" style="margin-bottom:16px">
+<label>Tìm dịch vụ
+<input id="search" type="search" placeholder="Nhập tên, nhóm hoặc ghi chú">
+</label>
+<label>Lọc nhóm
+<select id="groupFilter"><option value="">Tất cả nhóm</option></select>
+</label>
+</div>
+<p class="muted">Dấu “+” là khoản cộng thêm. Chỉ thêm khoản này vào dự toán khi áp dụng cùng dịch vụ chính.</p>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Dịch vụ</th><th>Đơn vị</th><th>Đơn giá (VNĐ)</th><th>Thao tác</th></tr></thead>
+<tbody id="servicesBody"></tbody>
+</table>
+</div>
+</section>
+
+<section class="card" id="estimateSection">
+<h2>Dự toán chi phí</h2>
+<p class="muted">Dự toán minh họa, không phải chỉ định điều trị hoặc báo giá đã xác nhận.
+Khoảng giá được cộng thành tổng thấp nhất và cao nhất.</p>
+<p class="muted no-print">Bấm “Thêm vào dự toán” ở dịch vụ bên trên.
+Có thể chỉnh số lượng và giá riêng cho từng dòng.
+Sửa bảng giá không tự thay đổi các dòng dự toán đã thêm.</p>
+<div class="table-wrap">
+<table>
+<thead><tr>
+<th>Dịch vụ</th><th>Số lượng</th><th>Giá thấp nhất (VNĐ)</th><th>Giá cao nhất (VNĐ)</th><th>Thành tiền (VNĐ)</th><th class="no-print">Xóa</th>
+</tr></thead>
+<tbody id="quoteBody"></tbody>
+</table>
+</div>
+<div id="total" class="total">Tổng dự toán: 0 ₫</div>
+<div class="actions no-print">
+<button id="printBtn" type="button">In / Lưu PDF (tệp tài liệu)</button>
+<button id="clearQuoteBtn" type="button" class="secondary">Xóa toàn bộ dự toán</button>
+</div>
+</section>
+</main>
+
+<script>
+"use strict";
+
+/* Giá trị tiền trong dữ liệu gốc được ghi bằng VNĐ.
+   Dấu + chỉ khoản cộng thêm; dấu - ngăn cách khoảng giá. */
+const SOURCE = `@Điều trị nha chu
+Cạo vôi trên nướu (nhẹ – ít)|Lần|300000|1 lần hẹn
+Cạo vôi trên nướu (vừa)|Lần|400000|1 lần hẹn
+Cạo vôi trên nướu (nhiều)|Lần|500000|1 lần hẹn
+Cạo vôi dưới nướu (vừa)|Lần|500000|1 lần hẹn
+Cạo vôi dưới nướu (nhiều)|Lần|700000|2 lần hẹn; có chảy máu nhiều
+Xử lý nha chu viêm (không lật vạt)|1 răng|800000|Túi nha chu > 3 mm
+Xử lý nha chu viêm (có lật vạt)|1 răng|1200000|2–3 lần hẹn
+Xử lý nha chu viêm (toàn hàm)|1 hàm|3000000|2–4 lần hẹn
+Xử lý nha chu viêm (hai hàm)|2 hàm|5000000|3–5 lần hẹn
+@Trám răng
+Trám composite 1 mặt|1 răng|400000|Bảo hành 6 tháng
+Trám composite 2 mặt|1 răng|500000|Bảo hành 6 tháng
+Trám composite 3 mặt|1 răng|700000|Bảo hành 6 tháng
+Trám thẩm mỹ mặt ngoài răng cửa|1 răng|1000000|Bảo hành 6 tháng
+Trám lót GIC|1 răng|+200000|
+Cắm chốt tái tạo|1 chốt|+400000|
+@Nội nha (chữa tủy)
+Răng không nhiễm trùng (1 chân)|1 răng|1200000|Bảo hành 2 năm
+Răng không nhiễm trùng (2 chân)|1 răng|1500000|Bảo hành 2 năm
+Răng không nhiễm trùng (3 chân)|1 răng|2000000|Bảo hành 2 năm
+Răng không nhiễm trùng (4 chân)|1 răng|2400000|Bảo hành 2 năm
+Răng có nhiễm trùng (1 chân)|1 răng|1600000|Bảo hành 2 năm
+Răng có nhiễm trùng (2 chân)|1 răng|1900000|Bảo hành 2 năm
+Răng có nhiễm trùng (3 chân)|1 răng|2400000|Bảo hành 2 năm
+Răng có nhiễm trùng (4 chân)|1 răng|2800000|Bảo hành 2 năm
+Điều trị tủy lại|1 ống|+300000|
+@Nhổ răng và tiểu phẫu
+Nhổ răng 1 chân|1 răng|400000|R1–R3
+Nhổ răng 2 chân|1 răng|500000|R4–R5
+Nhổ răng 3 chân|1 răng|700000|R6–R7
+Răng khôn hàm trên (đã mọc)|1 răng|1000000-1500000|
+Răng khôn hàm dưới (mọc thẳng)|1 răng|1000000-1500000|
+Răng khôn hàm dưới (lệch < 60 độ)|1 răng|1500000-2200000|
+Răng khôn hàm dưới (lệch > 60 độ)|1 răng|2200000-3000000|
+Răng ngầm|1 răng|3000000|
+Khâu vết thương|1 răng|300000|Ca khó
+Công nghệ nhổ bằng máy Piezotome|1 răng|+1000000|
+@Phục hình răng sứ
+Mão toàn sứ Zirconia (Đức)|1 răng|5000000|Bảo hành 4 năm
+Mão toàn sứ Cercon (Đức)|1 răng|6000000|Bảo hành 6 năm
+Mão toàn sứ Emax (Đức)|1 răng|7000000|Bảo hành 6 năm
+Mão toàn sứ Lava Plus (Mỹ)|1 răng|10000000|Bảo hành 10 năm
+Combo 16 răng Zirconia|2 hàm|64000000|Trọn gói; giảm 20% theo bảng giá gốc
+Combo 16 răng Cercon|2 hàm|76000000|Trọn gói; giảm 20% theo bảng giá gốc
+Combo 16 răng Emax|2 hàm|89000000|Trọn gói; giảm 20% theo bảng giá gốc
+Combo 16 răng Lava Plus|2 hàm|128000000|Trọn gói; giảm 20% theo bảng giá gốc
+Mão sứ kim loại Titan|1 răng|3000000|Bảo hành 2 năm
+Mão sứ Crom–Cobalt|1 răng|4000000|Bảo hành 3 năm
+Inlay/Onlay Emax|1 răng|5000000|Bảo hành 4 năm
+Veneer Emax|1 răng|7000000|Bảo hành 6 năm
+Veneer Lisi|1 răng|9000000|Bảo hành 6 năm
+Cùi giả kim loại|1 răng|700000|
+Cùi giả toàn sứ|1 răng|1500000|
+@Phục hình tháo lắp
+Hàm khung Titan|1 hàm|3500000|Bảo hành 2 năm
+Hàm khung Crom–Cobalt|1 hàm|4500000|Bảo hành 3 năm
+Hàm nhựa dẻo|1 hàm|3500000|Bảo hành 2 năm
+Hàm nhựa cứng|1 hàm|500000|Bảo hành 1 năm
+Răng nhựa Đức|1 răng|500000|Bảo hành 1 năm
+Răng nhựa Composite|1 răng|700000|Bảo hành 2 năm
+Răng sứ tháo lắp|1 răng|1600000|Bảo hành 4 năm
+Móc kim loại|1 móc|400000|
+Móc nhựa dẻo|1 móc|700000|
+Mắc cài hàm khung liên kết|1 móc|2500000|
+Ron cao su mắc cài đơn|1 ron|500000|Thay thế sau 2–3 năm sử dụng
+Lưới cường lực|1 hàm|600000|
+Nền hàm mềm Comfort|1 hàm|12000000|
+@Niềng răng mắc cài
+Mắc cài kim loại (1 hàm chen chúc, thưa kẽ nhẹ 1–2 mm)|1 hàm|18000000|Dưới 1 năm theo bảng giá gốc
+Mắc cài kim loại (2 hàm chen chúc, thưa kẽ nhẹ 1–2 mm, không nhổ răng)|2 hàm|28000000|Dưới 1 năm theo bảng giá gốc
+Mắc cài kim loại (2 hàm chen chúc, thưa kẽ trung bình 3–4 mm, không nhổ răng)|2 hàm|35000000|1–2 năm theo bảng giá gốc
+Mắc cài kim loại (2 hàm chen chúc, thưa kẽ nhiều > 4 mm, có nhổ răng)|2 hàm|40000000|2–3 năm theo bảng giá gốc
+Mắc cài kim loại tự khóa tròn|2 hàm|+5000000|Nhanh hơn 3–6 tháng theo bảng giá gốc; thời gian thực tế do bác sĩ đánh giá
+Mắc cài sứ|2 hàm|+9000000|
+Mắc cài sứ tự khóa|2 hàm|+12000000|
+Minivis|1 cái|2000000|
+Khí cụ nong hàm tự động|1 hàm|7000000|
+Hàm duy trì|1 hàm|1500000|
+@Niềng khay trong suốt
+Invisalign Essentials (1 hàm)|1 hàm|40000000|Tối đa 20 khay + 1 lần tinh chỉnh
+Invisalign Essentials (2 hàm, tối đa 20 khay)|2 hàm|50000000|Tối đa 20 khay
+Invisalign Essentials (2 hàm, có tinh chỉnh)|2 hàm|60000000|Tối đa 20 khay + 1 lần tinh chỉnh
+Invisalign Comprehensive 3|2 hàm|100000000|3 năm; không giới hạn khay
+Gói tinh chỉnh thêm|2 hàm|12000000|Không giới hạn số lượng khay
+Khay Smartee Mini|1 hàm|30000000|Tối đa 10 khay + 1 lần tinh chỉnh
+Khay Smartee Mini|2 hàm|40000000|Tối đa 10 cặp khay + 1 lần tinh chỉnh
+Khay Smartee Lite|2 hàm|55000000|Tối đa 25 cặp khay + 2 lần tinh chỉnh
+Khay Smartee Express|2 hàm|75000000|Tối đa 40 cặp khay + 3 lần tinh chỉnh; 3 năm
+Khay Smartee Infiniti|2 hàm|85000000|Không giới hạn số khay và số lần tinh chỉnh; 5 năm
+@Implant đơn lẻ
+Implant Dio (Hàn Quốc)|1 trụ|14000000|Lành thương 6–10 tháng theo bảng giá gốc
+Implant Kontact (Pháp)|1 trụ|20000000|Lành thương 5–6 tháng theo bảng giá gốc
+Implant SIC (Thụy Sĩ)|1 trụ|28000000|Lành thương 3–4 tháng theo bảng giá gốc
+Implant Nobel (Thụy Sĩ)|1 trụ|37000000|Lành thương 2–3 tháng theo bảng giá gốc
+Ghép xương|1 răng|4000000-10000000|
+Ghép màng|1 vị trí|5000000-8000000|
+@Implant toàn hàm
+All-on-2 Dio|1 hàm|30000000|Phục hình sau cùng tháo lắp
+All-on-2 Kontact|1 hàm|42000000|Phục hình sau cùng tháo lắp
+Hàm giả nhựa tháo lắp trên All-on-2|1 hàm|12000000|Phục hình sau cùng tháo lắp
+All-on-4 Dio|1 hàm|75000000|Phục hình sau cùng cố định nhựa / sứ
+All-on-4 Kontact|1 hàm|99000000|Phục hình sau cùng cố định nhựa / sứ
+All-on-4 SIC|1 hàm|120000000|Phục hình sau cùng cố định nhựa / sứ
+All-on-4 Nobel|1 hàm|175000000|Phục hình sau cùng cố định nhựa / sứ
+All-on-6 Dio|1 hàm|105000000|Phục hình sau cùng cố định nhựa / sứ
+All-on-6 Kontact|1 hàm|141000000|Phục hình sau cùng cố định nhựa / sứ
+All-on-6 SIC|1 hàm|189000000|Phục hình sau cùng cố định nhựa / sứ
+All-on-6 Nobel|1 hàm|255000000|Phục hình sau cùng cố định nhựa / sứ
+Phục hình cố định nhựa|1 hàm|20000000|Thời gian sử dụng khoảng 2–3 năm theo bảng giá gốc
+Phục hình cố định răng toàn sứ Zirconia|1 hàm|70000000|
+Phục hình cố định răng toàn sứ Cercon|1 hàm|84000000|
+@Răng trẻ em
+Nhổ răng sữa bôi tê|1 răng|100000|
+Nhổ răng sữa chích tê|1 răng|200000|
+Trám GIC|1 răng|300000|Bảo hành 3 tháng
+Trám Composite|1 răng|400000|Bảo hành 6 tháng
+Chữa tủy răng cửa|1 răng|800000|Chưa bao gồm chi phí trám
+Chữa tủy răng cối|1 răng|1100000|Chưa bao gồm chi phí trám
+Lấy vôi răng / vết dính nhẹ|2 hàm|200000|
+Lấy vôi răng / vết dính nhiều|2 hàm|300000|
+Mão SSC kim loại|1 răng|1000000|
+Mão nhựa răng cửa|1 răng|1000000|
+Khí cụ Hawley|1 hàm|5000000|
+Ốc nới rộng|1 ốc|2000000|
+Khí cụ chặn lưỡi / mút tay / mút môi|1 hàm|7000000|
+Khí cụ Activator|2 hàm|13000000|
+Niềng khay trong suốt giai đoạn răng hỗn hợp|2 hàm|80000000|Không giới hạn số khay, số lần tinh chỉnh trong 18 tháng
+Khí cụ giữ khoảng|1 răng|1500000|`;
+
+const KEY = "dental-cost-calculator.v1";
+const BACKUP_KEY = KEY + ".previous";
+const LIMIT_PRICE = 10000000000;
+const $ = id => document.getElementById(id);
+const money = value => new Intl.NumberFormat("vi-VN", {
+  style:"currency", currency:"VND", maximumFractionDigits:0
+}).format(value);
+const clone = value => JSON.parse(JSON.stringify(value));
+const newId = () => {
+  if (globalThis.crypto && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+};
+let state;
+let editingId = null;
+let storageBlocked = false;
+let knownRaw = null;
+
+function message(text, error=false) {
+  $("status").textContent = text;
+  $("status").classList.toggle("error", error);
+}
+function element(tag, text, className) {
+  const node = document.createElement(tag);
+  if (text !== undefined) node.textContent = text;
+  if (className) node.className = className;
+  return node;
+}
+function action(text, fn, className="") {
+  const button = element("button", text, className);
+  button.type = "button";
+  button.addEventListener("click", fn);
+  return button;
+}
+function rangeText(min,max) {
+  return min === max ? money(min) : money(min) + " – " + money(max);
+}
+function defaults() {
+  let category = "";
+  const services = [];
+  for (const line of SOURCE.split("\n")) {
+    if (line.startsWith("@")) {
+      category = line.slice(1);
+      continue;
+    }
+    const [name,unit,price,note=""] = line.split("|");
+    const addon = price.startsWith("+");
+    const values = price.replace("+","").split("-").map(Number);
+    services.push({
+      id:"hello-" + services.length, category, name, unit,
+      min:values[0], max:values[1] ?? values[0], addon, note
+    });
+  }
+  return {version:1,services,quote:[]};
+}
+function textValid(value,max,allowEmpty=false) {
+  return typeof value === "string" &&
+    value.length <= max && (allowEmpty || value.trim().length > 0);
+}
+function priceValid(value) {
+  return Number.isSafeInteger(value) && value >= 0 && value <= LIMIT_PRICE;
+}
+function normalizeService(s) {
+  if (!s || !textValid(s.id,150) || !textValid(s.category,150) ||
+      !textValid(s.name,300) || !textValid(s.unit,60) ||
+      !textValid(s.note,1500,true) || typeof s.addon !== "boolean" ||
+      !priceValid(s.min) || !priceValid(s.max) || s.max < s.min) {
+    throw new Error("Thông tin dịch vụ không hợp lệ.");
+  }
+  return {
+    id:s.id,category:s.category.trim(),name:s.name.trim(),
+    unit:s.unit.trim(),min:s.min,max:s.max,addon:s.addon,note:s.note.trim()
+  };
+}
+function validate(data) {
+  if (!data || data.version !== 1 || !Array.isArray(data.services) ||
+      !Array.isArray(data.quote) || data.services.length > 3000 ||
+      data.quote.length > 500) {
+    throw new Error("Tệp không đúng định dạng hoặc vượt giới hạn dữ liệu.");
+  }
+  const services = data.services.map(normalizeService);
+  const quote = data.quote.map(item => {
+    const normalized = normalizeService(item);
+    if (!Number.isInteger(item.qty) || item.qty < 1 || item.qty > 1000) {
+      throw new Error("Số lượng phải từ 1 đến 1.000.");
+    }
+    return {...normalized,qty:item.qty};
+  });
+  if (new Set(services.map(s=>s.id)).size !== services.length ||
+      new Set(quote.map(s=>s.id)).size !== quote.length) {
+    throw new Error("Dữ liệu có mã bị trùng.");
+  }
+  const maxTotal = quote.reduce((sum,item)=>sum+item.max*item.qty,0);
+  if (!Number.isSafeInteger(maxTotal)) {
+    throw new Error("Tổng tiền vượt giới hạn tính toán.");
+  }
+  return {version:1,services,quote};
+}
+
+/* Chỉ cập nhật giao diện sau khi ghi thành công.
+   Giữ lại dữ liệu trước đó và không ghi đè dữ liệu lỗi khi khởi động. */
+function save(next, success="Đã lưu trong trình duyệt này.") {
+  if (storageBlocked) {
+    message("Đang khóa lưu để bảo vệ dữ liệu cũ. Hãy tải bản sao lưu, rồi nhập bản hợp lệ hoặc khôi phục bảng giá ban đầu.",true);
+    return false;
+  }
+  try {
+    const checked = validate(next);
+    const currentRaw = localStorage.getItem(KEY);
+    if (currentRaw !== knownRaw) {
+      message("Dữ liệu đã thay đổi ở thẻ trình duyệt khác. Hãy tải lại trang trước khi sửa tiếp.",true);
+      return false;
+    }
+    const nextRaw = JSON.stringify(checked);
+    if (currentRaw !== null) localStorage.setItem(BACKUP_KEY,currentRaw);
+    localStorage.setItem(KEY,nextRaw);
+    knownRaw = nextRaw;
+    state = checked;
+    render();
+    message(success);
+    return true;
+  } catch (error) {
+    message("Chưa lưu thay đổi: " + error.message + " Hãy tải bản sao lưu nếu cần.",true);
+    return false;
+  }
+}
+function load() {
+  try {
+    knownRaw = localStorage.getItem(KEY);
+    state = knownRaw === null ? defaults() : validate(JSON.parse(knownRaw));
+    message(knownRaw === null
+      ? "Đã nạp bảng giá ban đầu. Thay đổi sẽ được lưu khi bạn thao tác."
+      : "Đã đọc bảng giá và dự toán đã lưu.");
+  } catch (error) {
+    state = defaults();
+    storageBlocked = true;
+    message("Không đọc được dữ liệu đã lưu. Đang hiển thị bảng mẫu và khóa lưu để tránh ghi đè. Hãy tải bản sao lưu trước khi khôi phục.",true);
+  }
+  render();
+}
+function resetForm() {
+  editingId = null;
+  $("serviceForm").reset();
+  $("formTitle").textContent = "Thêm dịch vụ";
+  $("cancelBtn").hidden = true;
+}
+function editService(service) {
+  editingId = service.id;
+  $("category").value = service.category;
+  $("serviceName").value = service.name;
+  $("unit").value = service.unit;
+  $("priceMin").value = service.min;
+  $("priceMax").value = service.max;
+  $("addon").value = String(service.addon);
+  $("note").value = service.note;
+  $("formTitle").textContent = "Sửa dịch vụ";
+  $("cancelBtn").hidden = false;
+  $("serviceForm").scrollIntoView({behavior:"smooth",block:"center"});
+  $("serviceName").focus();
+}
+function renderGroups() {
+  const groups = [...new Set(state.services.map(s=>s.category))]
+    .sort((a,b)=>a.localeCompare(b,"vi"));
+  const selected = $("groupFilter").value;
+  $("groupFilter").replaceChildren(new Option("Tất cả nhóm",""));
+  $("categories").replaceChildren();
+  groups.forEach(group=>{
+    $("groupFilter").add(new Option(group,group));
+    const option = document.createElement("option");
+    option.value = group;
+    $("categories").append(option);
+  });
+  if (groups.includes(selected)) $("groupFilter").value = selected;
+}
+function fold(text) {
+  return text.toLocaleLowerCase("vi").normalize("NFD")
+    .replace(/[\u0300-\u036f]/g,"").replace(/đ/g,"d");
+}
+function renderServices() {
+  const body = $("servicesBody");
+  body.replaceChildren();
+  const query = fold($("search").value.trim());
+  const group = $("groupFilter").value;
+  const items = state.services.filter(s=>
+    (!group || s.category === group) &&
+    fold([s.name,s.category,s.note].join(" ")).includes(query));
+  $("count").textContent = "(" + items.length + "/" + state.services.length + ")";
+  for (const service of items) {
+    const row = element("tr");
+    const description = element("td");
+    description.append(element("strong",service.name),
+      element("small",service.category));
+    if (service.note) description.append(element("small",service.note));
+    if (service.addon) description.append(element("small","Khoản cộng thêm"));
+    const price = element("td",
+      (service.addon ? "+ " : "") + rangeText(service.min,service.max),"money");
+    const buttons = element("td");
+    buttons.append(
+      action("Thêm vào dự toán",()=>{
+        if (state.quote.length >= 500) {
+          message("Mỗi dự toán có tối đa 500 dòng.",true);
+          return;
+        }
+        const next = clone(state);
+        next.quote.push({...service,id:newId(),qty:1});
+        save(next,"Đã thêm vào dự toán và lưu.");
+      }),
+      action("Sửa",()=>editService(service),"secondary"),
+      action("Xóa",()=>{
+        if (!confirm("Xóa dịch vụ “" + service.name + "” khỏi bảng giá? Các dòng dự toán đã thêm được giữ nguyên.")) return;
+        const next = clone(state);
+        next.services = next.services.filter(s=>s.id !== service.id);
+        if (save(next,"Đã xóa dịch vụ và lưu.") && editingId === service.id) resetForm();
+      },"danger")
+    );
+    row.append(description,element("td",service.unit),price,buttons);
+    body.append(row);
+  }
+  if (!items.length) {
+    const row = element("tr");
+    const cell = element("td","Không có dịch vụ phù hợp.");
+    cell.colSpan = 4;
+    row.append(cell);
+    body.append(row);
+  }
+}
+function numberInput(value,min,max,label,fn,className="quote-input") {
+  const input = document.createElement("input");
+  input.type = "number";
+  input.min = min;
+  input.max = max;
+  input.step = 1;
+  input.value = value;
+  input.className = className;
+  input.setAttribute("aria-label",label);
+  input.addEventListener("change",()=>{
+    const number = input.value.trim() === "" ? NaN : Number(input.value);
+    if (!input.checkValidity() || !Number.isSafeInteger(number) ||
+        number < min || number > max) {
+      input.value = value;
+      message("Giá trị không hợp lệ: " + label,true);
+      return;
+    }
+    fn(number);
+  });
+  return input;
+}
+function updateQuote(id,field,value) {
+  const next = clone(state);
+  const item = next.quote.find(s=>s.id===id);
+  if (!item) return;
+  item[field] = value;
+  if (item.max < item.min) {
+    message("Giá cao nhất phải lớn hơn hoặc bằng giá thấp nhất.",true);
+    renderQuote();
+    return;
+  }
+  if (!save(next,"Đã lưu thay đổi dự toán.")) renderQuote();
+}
+function renderQuote() {
+  const body = $("quoteBody");
+  body.replaceChildren();
+  let low = 0, high = 0;
+  state.quote.forEach(item=>{
+    const row = element("tr");
+    const name = element("td");
+    name.append(element("strong",item.name),
+      element("small",item.unit + (item.addon ? " · Khoản cộng thêm" : "")));
+    if (item.note) name.append(element("small",item.note));
+    const quantity = element("td");
+    quantity.append(numberInput(item.qty,1,1000,
+      "Số lượng " + item.name,v=>updateQuote(item.id,"qty",v),"quote-input qty"));
+    const minCell = element("td");
+    minCell.append(numberInput(item.min,0,LIMIT_PRICE,
+      "Giá thấp nhất " + item.name,v=>updateQuote(item.id,"min",v)));
+    const maxCell = element("td");
+    maxCell.append(numberInput(item.max,0,LIMIT_PRICE,
+      "Giá cao nhất " + item.name,v=>updateQuote(item.id,"max",v)));
+    const sum = element("td",rangeText(item.min*item.qty,item.max*item.qty),"money");
+    const remove = element("td",undefined,"no-print");
+    remove.append(action("Xóa",()=>{
+      const next = clone(state);
+      next.quote = next.quote.filter(s=>s.id!==item.id);
+      save(next,"Đã xóa dòng dự toán và lưu.");
+    },"danger"));
+    row.append(name,quantity,minCell,maxCell,sum,remove);
+    body.append(row);
+    low += item.min*item.qty;
+    high += item.max*item.qty;
+  });
+  if (!state.quote.length) {
+    const row = element("tr");
+    const cell = element("td","Chưa có dịch vụ trong dự toán.");
+    cell.colSpan = 6;
+    row.append(cell);
+    body.append(row);
+  }
+  $("total").textContent = "Tổng dự toán: " + rangeText(low,high);
+}
+function render() {
+  renderGroups();
+  renderServices();
+  renderQuote();
+}
+$("serviceForm").addEventListener("submit",event=>{
+  event.preventDefault();
+  const min = Number($("priceMin").value);
+  const max = $("priceMax").value.trim() === "" ? min : Number($("priceMax").value);
+  let service;
+  try {
+    service = normalizeService({
+      id:editingId || newId(),
+      category:$("category").value,
+      name:$("serviceName").value,
+      unit:$("unit").value,
+      min,max,addon:$("addon").value==="true",note:$("note").value
+    });
+  } catch (error) {
+    message(error.message + " Kiểm tra tên, đơn vị và khoảng giá.",true);
+    return;
+  }
+  const next = clone(state);
+  if (editingId) {
+    const index = next.services.findIndex(s=>s.id===editingId);
+    if (index < 0) {
+      message("Dịch vụ không còn tồn tại. Hãy hủy sửa và thử lại.",true);
+      return;
+    }
+    next.services[index] = service;
+  } else next.services.push(service);
+  if (save(next,"Đã lưu dịch vụ. Dự toán đã thêm trước đó giữ nguyên đơn giá.")) resetForm();
+});
+$("cancelBtn").addEventListener("click",resetForm);
+$("search").addEventListener("input",renderServices);
+$("groupFilter").addEventListener("change",renderServices);
+$("printBtn").addEventListener("click",()=>window.print());
+$("clearQuoteBtn").addEventListener("click",()=>{
+  if (!state.quote.length || !confirm("Xóa toàn bộ các dòng dự toán hiện tại?")) return;
+  const next = clone(state);
+  next.quote = [];
+  save(next,"Đã xóa dự toán và lưu.");
+});
+function download(text,filename) {
+  const blob = new Blob([text],{type:"application/json;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),10000);
+}
+$("exportBtn").addEventListener("click",()=>{
+  try {
+    if (storageBlocked) {
+      const raw = localStorage.getItem(KEY);
+      if (raw === null) {
+        download(JSON.stringify(state,null,2),"bang-gia-mau.json");
+      } else {
+        download(raw,"du-lieu-can-khoi-phuc.json");
+      }
+    } else {
+      download(JSON.stringify(state,null,2),"sao-luu-nha-khoa-" + Date.now() + ".json");
+    }
+    message("Đã yêu cầu trình duyệt tải bản sao lưu. Hãy kiểm tra thư mục tải xuống.");
+  } catch (error) {
+    message("Không tải được bản sao lưu: " + error.message,true);
+  }
+});
+$("importBtn").addEventListener("click",()=>$("importFile").click());
+$("importFile").addEventListener("change",async event=>{
+  const file = event.target.files[0];
+  event.target.value = "";
+  if (!file) return;
+  try {
+    if (file.size > 5000000) throw new Error("Tệp phải nhỏ hơn 5 MB.");
+    const next = validate(JSON.parse(await file.text()));
+    if (!confirm("Thay bảng giá và dự toán hiện tại bằng bản sao lưu gồm " +
+        next.services.length + " dịch vụ và " + next.quote.length + " dòng dự toán?")) return;
+    if (storageBlocked) {
+      if (!confirm("Dữ liệu cũ đang lỗi hoặc không đọc được. Bạn đã tải bản sao lưu và đồng ý thay dữ liệu cũ?")) return;
+      knownRaw = localStorage.getItem(KEY);
+    }
+    const wasBlocked = storageBlocked;
+    storageBlocked = false;
+    if (save(next,"Đã nhập bản sao lưu và lưu trong trình duyệt.")) resetForm();
+    else storageBlocked = wasBlocked;
+  } catch (error) {
+    message("Không nhập được bản sao lưu: " + error.message,true);
+  }
+});
+$("restoreBtn").addEventListener("click",()=>{
+  try {
+    const raw = localStorage.getItem(BACKUP_KEY);
+    if (raw === null) {
+      message("Chưa có bản lưu trước để khôi phục.",true);
+      return;
+    }
+    const next = validate(JSON.parse(raw));
+    if (!confirm("Khôi phục bảng giá và dự toán của lần lưu trước?")) return;
+    if (storageBlocked) {
+      message("Hãy tải dữ liệu cũ ra tệp trước, rồi dùng Nhập bản sao lưu hoặc Khôi phục bảng giá ban đầu.",true);
+      return;
+    }
+    if (save(next,"Đã khôi phục lần lưu trước.")) resetForm();
+  } catch (error) {
+    message("Không khôi phục được: " + error.message,true);
+  }
+});
+$("resetBtn").addEventListener("click",()=>{
+  if (!confirm("Thay bảng giá bằng dữ liệu Hello ban đầu và xóa dự toán? Hãy tải bản sao lưu trước nếu cần giữ dữ liệu.")) return;
+  try {
+    if (storageBlocked) {
+      if (!confirm("Bạn đã sao lưu dữ liệu cũ và đồng ý ghi đè để tiếp tục?")) return;
+      knownRaw = localStorage.getItem(KEY);
+    }
+    const wasBlocked = storageBlocked;
+    storageBlocked = false;
+    if (save(defaults(),"Đã khôi phục bảng giá ban đầu và xóa dự toán.")) resetForm();
+    else storageBlocked = wasBlocked;
+  } catch (error) {
+    message("Không khôi phục được: " + error.message,true);
+  }
+});
+window.addEventListener("storage",event=>{
+  if (event.key === KEY || event.key === null) {
+    message("Dữ liệu đã thay đổi ở thẻ trình duyệt khác. Hãy tải lại trang trước khi sửa tiếp.",true);
+  }
+});
+load();
+</script>
+</body>
+</html><!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bảng giá và dự toán nha khoa</title>
+<style>
+:root{font-family:Arial,sans-serif;color:#173047;background:#f2f6fa}
+*{box-sizing:border-box}
+body{margin:0}
+header{background:#125b70;color:white;padding:28px 20px}
+header>div,main{max-width:1200px;margin:auto}
+h1{margin:0 0 10px;font-size:28px}
+h2{margin:0 0 18px;font-size:21px}
+p{line-height:1.6}
+main{padding:20px}
+.card{background:white;padding:22px;border:1px solid #dbe4ec;border-radius:14px;margin-bottom:20px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+label{display:block;font-weight:bold;font-size:14px}
+input,select,textarea,button{font:inherit}
+input,select,textarea{display:block;width:100%;padding:11px;border:1px solid #b4c6d4;border-radius:7px;margin-top:6px;background:white;color:#173047}
+textarea{min-height:75px}
+button{border:0;border-radius:7px;padding:10px 15px;background:#12677d;color:white;cursor:pointer}
+button:hover{filter:brightness(.92)}
+button.secondary{background:#e7eef4;color:#173047}
+button.danger{background:#b43443}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;align-items:center}
+.table-wrap{overflow:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:12px 9px;border-bottom:1px solid #e1e8ee;vertical-align:top}
+th{background:#f0f6fa}
+td small{display:block;line-height:1.5;color:#526779;margin-top:5px}
+td button{padding:7px 10px;margin:2px}
+.money{white-space:nowrap}
+.muted{color:#526779;font-size:14px}
+.notice{padding:13px;background:#fff6dc;border-radius:8px;line-height:1.6}
+#status{position:sticky;top:0;z-index:5;background:#e5f5ec;padding:13px;border-bottom:1px solid #aacdb8;white-space:pre-wrap}
+#status.error{background:#fff0ef;border-color:#de9c97}
+.total{font-weight:bold;font-size:24px;color:#125b70;margin-top:16px}
+.quote-input{min-width:110px;max-width:170px;margin:0}
+.qty{min-width:75px;width:80px}
+.count{font-weight:normal;color:#526779;font-size:15px}
+[hidden]{display:none!important}
+@media(max-width:650px){.grid{grid-template-columns:1fr}main{padding:12px}.card{padding:16px}h1{font-size:23px}}
+@media print{
+header{background:white;color:black;padding:0}
+body{background:white}
+main{max-width:none;padding:0}
+.no-print,#status{display:none!important}
+.card{border:0;padding:10px 0}
+th,td{padding:8px 5px}
+input{border:0;padding:0}
+.total{color:black}
+}
+</style>
+</head>
+<body>
+<header>
+<div>
+<h1>Bảng giá và dự toán nha khoa</h1>
+<div>Quản lý dịch vụ · Tùy chỉnh đơn giá · Lập dự toán</div>
+</div>
+</header>
+<div id="status" role="status" aria-live="polite">Đang đọc dữ liệu…</div>
+<main>
+<section class="card no-print">
+<h2>Dữ liệu và bản sao lưu</h2>
+<p class="muted">
+Bảng giá ban đầu tham khảo
+<a href="https://nhakhoahello.vn/bang-gia/" target="_blank" rel="noopener noreferrer">Nha Khoa Hello</a>,
+ngày 10/11/2026. Giá và điều kiện bảo hành cần được xác nhận với phòng khám.
+Bạn có thể thay đổi bảng giá cho nhu cầu của mình.
+</p>
+<p class="notice">
+Dữ liệu lưu trong trình duyệt này, không tự chuyển sang máy khác.
+Xóa dữ liệu trình duyệt có thể làm mất bảng giá.
+Hãy tải bản sao lưu sau khi chỉnh sửa. Chỉ dùng tình huống giả định, không nhập dữ liệu bệnh nhân thật.
+</p>
+<div class="actions">
+<button id="exportBtn" type="button">Tải bản sao lưu</button>
+<button id="importBtn" type="button" class="secondary">Nhập bản sao lưu</button>
+<input id="importFile" type="file" accept=".json,application/json" hidden>
+<button id="restoreBtn" type="button" class="secondary">Khôi phục lần lưu trước</button>
+<button id="resetBtn" type="button" class="danger">Khôi phục bảng giá ban đầu</button>
+</div>
+</section>
+
+<section class="card no-print">
+<h2 id="formTitle">Thêm dịch vụ</h2>
+<form id="serviceForm">
+<div class="grid">
+<label>Nhóm dịch vụ
+<input id="category" list="categories" maxlength="150" required>
+<datalist id="categories"></datalist>
+</label>
+<label>Tên dịch vụ
+<input id="serviceName" maxlength="300" required>
+</label>
+<label>Đơn vị tính
+<input id="unit" maxlength="60" placeholder="Ví dụ: 1 răng, 1 hàm, 1 lần" required>
+</label>
+<label>Khoản cộng thêm
+<select id="addon">
+<option value="false">Không</option>
+<option value="true">Có — cộng vào dịch vụ chính</option>
+</select>
+</label>
+<label>Giá thấp nhất hoặc giá cố định (VNĐ)
+<input id="priceMin" type="number" min="0" max="10000000000" step="1" required>
+</label>
+<label>Giá cao nhất (VNĐ)
+<input id="priceMax" type="number" min="0" max="10000000000" step="1" placeholder="Để trống nếu là giá cố định">
+</label>
+</div>
+<label style="margin-top:14px">Ghi chú
+<textarea id="note" maxlength="1500" placeholder="Điều kiện áp dụng, bảo hành hoặc khoản chưa bao gồm"></textarea>
+</label>
+<div class="actions">
+<button type="submit">Lưu dịch vụ</button>
+<button id="cancelBtn" type="button" class="secondary" hidden>Hủy sửa</button>
+</div>
+</form>
+</section>
+
+<section class="card no-print">
+<h2>Danh sách dịch vụ <span id="count" class="count"></span></h2>
+<div class="grid" style="margin-bottom:16px">
+<label>Tìm dịch vụ
+<input id="search" type="search" placeholder="Nhập tên, nhóm hoặc ghi chú">
+</label>
+<label>Lọc nhóm
+<select id="groupFilter"><option value="">Tất cả nhóm</option></select>
+</label>
+</div>
+<p class="muted">Dấu “+” là khoản cộng thêm. Chỉ thêm khoản này vào dự toán khi áp dụng cùng dịch vụ chính.</p>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Dịch vụ</th><th>Đơn vị</th><th>Đơn giá (VNĐ)</th><th>Thao tác</th></tr></thead>
+<tbody id="servicesBody"></tbody>
+</table>
+</div>
+</section>
+
+<section class="card" id="estimateSection">
+<h2>Dự toán chi phí</h2>
+<p class="muted">Dự toán minh họa, không phải chỉ định điều trị hoặc báo giá đã xác nhận.
+Khoảng giá được cộng thành tổng thấp nhất và cao nhất.</p>
+<p class="muted no-print">Bấm “Thêm vào dự toán” ở dịch vụ bên trên.
+Có thể chỉnh số lượng và giá riêng cho từng dòng.
+Sửa bảng giá không tự thay đổi các dòng dự toán đã thêm.</p>
+<div class="table-wrap">
+<table>
+<thead><tr>
+<th>Dịch vụ</th><th>Số lượng</th><th>Giá thấp nhất (VNĐ)</th><th>Giá cao nhất (VNĐ)</th><th>Thành tiền (VNĐ)</th><th class="no-print">Xóa</th>
+</tr></thead>
+<tbody id="quoteBody"></tbody>
+</table>
+</div>
+<div id="total" class="total">Tổng dự toán: 0 ₫</div>
+<div class="actions no-print">
+<button id="printBtn" type="button">In / Lưu PDF (tệp tài liệu)</button>
+<button id="clearQuoteBtn" type="button" class="secondary">Xóa toàn bộ dự toán</button>
+</div>
+</section>
+</main>
+
+<script>
+"use strict";
+
+/* Giá trị tiền trong dữ liệu gốc được ghi bằng VNĐ.
+   Dấu + chỉ khoản cộng thêm; dấu - ngăn cách khoảng giá. */
+const SOURCE = `@Điều trị nha chu
+Cạo vôi trên nướu (nhẹ – ít)|Lần|300000|1 lần hẹn
+Cạo vôi trên nướu (vừa)|Lần|400000|1 lần hẹn
+Cạo vôi trên nướu (nhiều)|Lần|500000|1 lần hẹn
+Cạo vôi dưới nướu (vừa)|Lần|500000|1 lần hẹn
+Cạo vôi dưới nướu (nhiều)|Lần|700000|2 lần hẹn; có chảy máu nhiều
+Xử lý nha chu viêm (không lật vạt)|1 răng|800000|Túi nha chu > 3 mm
+Xử lý nha chu viêm (có lật vạt)|1 răng|1200000|2–3 lần hẹn
+Xử lý nha chu viêm (toàn hàm)|1 hàm|3000000|2–4 lần hẹn
+Xử lý nha chu viêm (hai hàm)|2 hàm|5000000|3–5 lần hẹn
+@Trám răng
+Trám composite 1 mặt|1 răng|400000|Bảo hành 6 tháng
+Trám composite 2 mặt|1 răng|500000|Bảo hành 6 tháng
+Trám composite 3 mặt|1 răng|700000|Bảo hành 6 tháng
+Trám thẩm mỹ mặt ngoài răng cửa|1 răng|1000000|Bảo hành 6 tháng
+Trám lót GIC|1 răng|+200000|
+Cắm chốt tái tạo|1 chốt|+400000|
+@Nội nha (chữa tủy)
+Răng không nhiễm trùng (1 chân)|1 răng|1200000|Bảo hành 2 năm
+Răng không nhiễm trùng (2 chân)|1 răng|1500000|Bảo hành 2 năm
+Răng không nhiễm trùng (3 chân)|1 răng|2000000|Bảo hành 2 năm
+Răng không nhiễm trùng (4 chân)|1 răng|2400000|Bảo hành 2 năm
+Răng có nhiễm trùng (1 chân)|1 răng|1600000|Bảo hành 2 năm
+Răng có nhiễm trùng (2 chân)|1 răng|1900000|Bảo hành 2 năm
+Răng có nhiễm trùng (3 chân)|1 răng|2400000|Bảo hành 2 năm
+Răng có nhiễm trùng (4 chân)|1 răng|2800000|Bảo hành 2 năm
+Điều trị tủy lại|1 ống|+300000|
+@Nhổ răng và tiểu phẫu
+Nhổ răng 1 chân|1 răng|400000|R1–R3
+Nhổ răng 2 chân|1 răng|500000|R4–R5
+Nhổ răng 3 chân|1 răng|700000|R6–R7
+Răng khôn hàm trên (đã mọc)|1 răng|1000000-1500000|
+Răng khôn hàm dưới (mọc thẳng)|1 răng|1000000-1500000|
+Răng khôn hàm dưới (lệch < 60 độ)|1 răng|1500000-2200000|
+Răng khôn hàm dưới (lệch > 60 độ)|1 răng|2200000-3000000|
+Răng ngầm|1 răng|3000000|
+Khâu vết thương|1 răng|300000|Ca khó
+Công nghệ nhổ bằng máy Piezotome|1 răng|+1000000|
+@Phục hình răng sứ
+Mão toàn sứ Zirconia (Đức)|1 răng|5000000|Bảo hành 4 năm
+Mão toàn sứ Cercon (Đức)|1 răng|6000000|Bảo hành 6 năm
+Mão toàn sứ Emax (Đức)|1 răng|7000000|Bảo hành 6 năm
+Mão toàn sứ Lava Plus (Mỹ)|1 răng|10000000|Bảo hành 10 năm
+Combo 16 răng Zirconia|2 hàm|64000000|Trọn gói; giảm 20% theo bảng giá gốc
+Combo 16 răng Cercon|2 hàm|76000000|Trọn gói; giảm 20% theo bảng giá gốc
+Combo 16 răng Emax|2 hàm|89000000|Trọn gói; giảm 20% theo bảng giá gốc
+Combo 16 răng Lava Plus|2 hàm|128000000|Trọn gói; giảm 20% theo bảng giá gốc
+Mão sứ kim loại Titan|1 răng|3000000|Bảo hành 2 năm
+Mão sứ Crom–Cobalt|1 răng|4000000|Bảo hành 3 năm
+Inlay/Onlay Emax|1 răng|5000000|Bảo hành 4 năm
+Veneer Emax|1 răng|7000000|Bảo hành 6 năm
+Veneer Lisi|1 răng|9000000|Bảo hành 6 năm
+Cùi giả kim loại|1 răng|700000|
+Cùi giả toàn sứ|1 răng|1500000|
+@Phục hình tháo lắp
+Hàm khung Titan|1 hàm|3500000|Bảo hành 2 năm
+Hàm khung Crom–Cobalt|1 hàm|4500000|Bảo hành 3 năm
+Hàm nhựa dẻo|1 hàm|3500000|Bảo hành 2 năm
+Hàm nhựa cứng|1 hàm|500000|Bảo hành 1 năm
+Răng nhựa Đức|1 răng|500000|Bảo hành 1 năm
+Răng nhựa Composite|1 răng|700000|Bảo hành 2 năm
+Răng sứ tháo lắp|1 răng|1600000|Bảo hành 4 năm
+Móc kim loại|1 móc|400000|
+Móc nhựa dẻo|1 móc|700000|
+Mắc cài hàm khung liên kết|1 móc|2500000|
+Ron cao su mắc cài đơn|1 ron|500000|Thay thế sau 2–3 năm sử dụng
+Lưới cường lực|1 hàm|600000|
+Nền hàm mềm Comfort|1 hàm|12000000|
+@Niềng răng mắc cài
+Mắc cài kim loại (1 hàm chen chúc, thưa kẽ nhẹ 1–2 mm)|1 hàm|18000000|Dưới 1 năm theo bảng giá gốc
+Mắc cài kim loại (2 hàm chen chúc, thưa kẽ nhẹ 1–2 mm, không nhổ răng)|2 hàm|28000000|Dưới 1 năm theo bảng giá gốc
+Mắc cài kim loại (2 hàm chen chúc, thưa kẽ trung bình 3–4 mm, không nhổ răng)|2 hàm|35000000|1–2 năm theo bảng giá gốc
+Mắc cài kim loại (2 hàm chen chúc, thưa kẽ nhiều > 4 mm, có nhổ răng)|2 hàm|40000000|2–3 năm theo bảng giá gốc
+Mắc cài kim loại tự khóa tròn|2 hàm|+5000000|Nhanh hơn 3–6 tháng theo bảng giá gốc; thời gian thực tế do bác sĩ đánh giá
+Mắc cài sứ|2 hàm|+9000000|
+Mắc cài sứ tự khóa|2 hàm|+12000000|
+Minivis|1 cái|2000000|
+Khí cụ nong hàm tự động|1 hàm|7000000|
+Hàm duy trì|1 hàm|1500000|
+@Niềng khay trong suốt
+Invisalign Essentials (1 hàm)|1 hàm|40000000|Tối đa 20 khay + 1 lần tinh chỉnh
+Invisalign Essentials (2 hàm, tối đa 20 khay)|2 hàm|50000000|Tối đa 20 khay
+Invisalign Essentials (2 hàm, có tinh chỉnh)|2 hàm|60000000|Tối đa 20 khay + 1 lần tinh chỉnh
+Invisalign Comprehensive 3|2 hàm|100000000|3 năm; không giới hạn khay
+Gói tinh chỉnh thêm|2 hàm|12000000|Không giới hạn số lượng khay
+Khay Smartee Mini|1 hàm|30000000|Tối đa 10 khay + 1 lần tinh chỉnh
+Khay Smartee Mini|2 hàm|40000000|Tối đa 10 cặp khay + 1 lần tinh chỉnh
+Khay Smartee Lite|2 hàm|55000000|Tối đa 25 cặp khay + 2 lần tinh chỉnh
+Khay Smartee Express|2 hàm|75000000|Tối đa 40 cặp khay + 3 lần tinh chỉnh; 3 năm
+Khay Smartee Infiniti|2 hàm|85000000|Không giới hạn số khay và số lần tinh chỉnh; 5 năm
+@Implant đơn lẻ
+Implant Dio (Hàn Quốc)|1 trụ|14000000|Lành thương 6–10 tháng theo bảng giá gốc
+Implant Kontact (Pháp)|1 trụ|20000000|Lành thương 5–6 tháng theo bảng giá gốc
+Implant SIC (Thụy Sĩ)|1 trụ|28000000|Lành thương 3–4 tháng theo bảng giá gốc
+Implant Nobel (Thụy Sĩ)|1 trụ|37000000|Lành thương 2–3 tháng theo bảng giá gốc
+Ghép xương|1 răng|4000000-10000000|
+Ghép màng|1 vị trí|5000000-8000000|
+@Implant toàn hàm
+All-on-2 Dio|1 hàm|30000000|Phục hình sau cùng tháo lắp
+All-on-2 Kontact|1 hàm|42000000|Phục hình sau cùng tháo lắp
+Hàm giả nhựa tháo lắp trên All-on-2|1 hàm|12000000|Phục hình sau cùng tháo lắp
+All-on-4 Dio|1 hàm|75000000|Phục hình sau cùng cố định nhựa / sứ
+All-on-4 Kontact|1 hàm|99000000|Phục hình sau cùng cố định nhựa / sứ
+All-on-4 SIC|1 hàm|120000000|Phục hình sau cùng cố định nhựa / sứ
+All-on-4 Nobel|1 hàm|175000000|Phục hình sau cùng cố định nhựa / sứ
+All-on-6 Dio|1 hàm|105000000|Phục hình sau cùng cố định nhựa / sứ
+All-on-6 Kontact|1 hàm|141000000|Phục hình sau cùng cố định nhựa / sứ
+All-on-6 SIC|1 hàm|189000000|Phục hình sau cùng cố định nhựa / sứ
+All-on-6 Nobel|1 hàm|255000000|Phục hình sau cùng cố định nhựa / sứ
+Phục hình cố định nhựa|1 hàm|20000000|Thời gian sử dụng khoảng 2–3 năm theo bảng giá gốc
+Phục hình cố định răng toàn sứ Zirconia|1 hàm|70000000|
+Phục hình cố định răng toàn sứ Cercon|1 hàm|84000000|
+@Răng trẻ em
+Nhổ răng sữa bôi tê|1 răng|100000|
+Nhổ răng sữa chích tê|1 răng|200000|
+Trám GIC|1 răng|300000|Bảo hành 3 tháng
+Trám Composite|1 răng|400000|Bảo hành 6 tháng
+Chữa tủy răng cửa|1 răng|800000|Chưa bao gồm chi phí trám
+Chữa tủy răng cối|1 răng|1100000|Chưa bao gồm chi phí trám
+Lấy vôi răng / vết dính nhẹ|2 hàm|200000|
+Lấy vôi răng / vết dính nhiều|2 hàm|300000|
+Mão SSC kim loại|1 răng|1000000|
+Mão nhựa răng cửa|1 răng|1000000|
+Khí cụ Hawley|1 hàm|5000000|
+Ốc nới rộng|1 ốc|2000000|
+Khí cụ chặn lưỡi / mút tay / mút môi|1 hàm|7000000|
+Khí cụ Activator|2 hàm|13000000|
+Niềng khay trong suốt giai đoạn răng hỗn hợp|2 hàm|80000000|Không giới hạn số khay, số lần tinh chỉnh trong 18 tháng
+Khí cụ giữ khoảng|1 răng|1500000|`;
+
+const KEY = "dental-cost-calculator.v1";
+const BACKUP_KEY = KEY + ".previous";
+const LIMIT_PRICE = 10000000000;
+const $ = id => document.getElementById(id);
+const money = value => new Intl.NumberFormat("vi-VN", {
+  style:"currency", currency:"VND", maximumFractionDigits:0
+}).format(value);
+const clone = value => JSON.parse(JSON.stringify(value));
+const newId = () => {
+  if (globalThis.crypto && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+};
+let state;
+let editingId = null;
+let storageBlocked = false;
+let knownRaw = null;
+
+function message(text, error=false) {
+  $("status").textContent = text;
+  $("status").classList.toggle("error", error);
+}
+function element(tag, text, className) {
+  const node = document.createElement(tag);
+  if (text !== undefined) node.textContent = text;
+  if (className) node.className = className;
+  return node;
+}
+function action(text, fn, className="") {
+  const button = element("button", text, className);
+  button.type = "button";
+  button.addEventListener("click", fn);
+  return button;
+}
+function rangeText(min,max) {
+  return min === max ? money(min) : money(min) + " – " + money(max);
+}
+function defaults() {
+  let category = "";
+  const services = [];
+  for (const line of SOURCE.split("\n")) {
+    if (line.startsWith("@")) {
+      category = line.slice(1);
+      continue;
+    }
+    const [name,unit,price,note=""] = line.split("|");
+    const addon = price.startsWith("+");
+    const values = price.replace("+","").split("-").map(Number);
+    services.push({
+      id:"hello-" + services.length, category, name, unit,
+      min:values[0], max:values[1] ?? values[0], addon, note
+    });
+  }
+  return {version:1,services,quote:[]};
+}
+function textValid(value,max,allowEmpty=false) {
+  return typeof value === "string" &&
+    value.length <= max && (allowEmpty || value.trim().length > 0);
+}
+function priceValid(value) {
+  return Number.isSafeInteger(value) && value >= 0 && value <= LIMIT_PRICE;
+}
+function normalizeService(s) {
+  if (!s || !textValid(s.id,150) || !textValid(s.category,150) ||
+      !textValid(s.name,300) || !textValid(s.unit,60) ||
+      !textValid(s.note,1500,true) || typeof s.addon !== "boolean" ||
+      !priceValid(s.min) || !priceValid(s.max) || s.max < s.min) {
+    throw new Error("Thông tin dịch vụ không hợp lệ.");
+  }
+  return {
+    id:s.id,category:s.category.trim(),name:s.name.trim(),
+    unit:s.unit.trim(),min:s.min,max:s.max,addon:s.addon,note:s.note.trim()
+  };
+}
+function validate(data) {
+  if (!data || data.version !== 1 || !Array.isArray(data.services) ||
+      !Array.isArray(data.quote) || data.services.length > 3000 ||
+      data.quote.length > 500) {
+    throw new Error("Tệp không đúng định dạng hoặc vượt giới hạn dữ liệu.");
+  }
+  const services = data.services.map(normalizeService);
+  const quote = data.quote.map(item => {
+    const normalized = normalizeService(item);
+    if (!Number.isInteger(item.qty) || item.qty < 1 || item.qty > 1000) {
+      throw new Error("Số lượng phải từ 1 đến 1.000.");
+    }
+    return {...normalized,qty:item.qty};
+  });
+  if (new Set(services.map(s=>s.id)).size !== services.length ||
+      new Set(quote.map(s=>s.id)).size !== quote.length) {
+    throw new Error("Dữ liệu có mã bị trùng.");
+  }
+  const maxTotal = quote.reduce((sum,item)=>sum+item.max*item.qty,0);
+  if (!Number.isSafeInteger(maxTotal)) {
+    throw new Error("Tổng tiền vượt giới hạn tính toán.");
+  }
+  return {version:1,services,quote};
+}
+
+/* Chỉ cập nhật giao diện sau khi ghi thành công.
+   Giữ lại dữ liệu trước đó và không ghi đè dữ liệu lỗi khi khởi động. */
+function save(next, success="Đã lưu trong trình duyệt này.") {
+  if (storageBlocked) {
+    message("Đang khóa lưu để bảo vệ dữ liệu cũ. Hãy tải bản sao lưu, rồi nhập bản hợp lệ hoặc khôi phục bảng giá ban đầu.",true);
+    return false;
+  }
+  try {
+    const checked = validate(next);
+    const currentRaw = localStorage.getItem(KEY);
+    if (currentRaw !== knownRaw) {
+      message("Dữ liệu đã thay đổi ở thẻ trình duyệt khác. Hãy tải lại trang trước khi sửa tiếp.",true);
+      return false;
+    }
+    const nextRaw = JSON.stringify(checked);
+    if (currentRaw !== null) localStorage.setItem(BACKUP_KEY,currentRaw);
+    localStorage.setItem(KEY,nextRaw);
+    knownRaw = nextRaw;
+    state = checked;
+    render();
+    message(success);
+    return true;
+  } catch (error) {
+    message("Chưa lưu thay đổi: " + error.message + " Hãy tải bản sao lưu nếu cần.",true);
+    return false;
+  }
+}
+function load() {
+  try {
+    knownRaw = localStorage.getItem(KEY);
+    state = knownRaw === null ? defaults() : validate(JSON.parse(knownRaw));
+    message(knownRaw === null
+      ? "Đã nạp bảng giá ban đầu. Thay đổi sẽ được lưu khi bạn thao tác."
+      : "Đã đọc bảng giá và dự toán đã lưu.");
+  } catch (error) {
+    state = defaults();
+    storageBlocked = true;
+    message("Không đọc được dữ liệu đã lưu. Đang hiển thị bảng mẫu và khóa lưu để tránh ghi đè. Hãy tải bản sao lưu trước khi khôi phục.",true);
+  }
+  render();
+}
+function resetForm() {
+  editingId = null;
+  $("serviceForm").reset();
+  $("formTitle").textContent = "Thêm dịch vụ";
+  $("cancelBtn").hidden = true;
+}
+function editService(service) {
+  editingId = service.id;
+  $("category").value = service.category;
+  $("serviceName").value = service.name;
+  $("unit").value = service.unit;
+  $("priceMin").value = service.min;
+  $("priceMax").value = service.max;
+  $("addon").value = String(service.addon);
+  $("note").value = service.note;
+  $("formTitle").textContent = "Sửa dịch vụ";
+  $("cancelBtn").hidden = false;
+  $("serviceForm").scrollIntoView({behavior:"smooth",block:"center"});
+  $("serviceName").focus();
+}
+function renderGroups() {
+  const groups = [...new Set(state.services.map(s=>s.category))]
+    .sort((a,b)=>a.localeCompare(b,"vi"));
+  const selected = $("groupFilter").value;
+  $("groupFilter").replaceChildren(new Option("Tất cả nhóm",""));
+  $("categories").replaceChildren();
+  groups.forEach(group=>{
+    $("groupFilter").add(new Option(group,group));
+    const option = document.createElement("option");
+    option.value = group;
+    $("categories").append(option);
+  });
+  if (groups.includes(selected)) $("groupFilter").value = selected;
+}
+function fold(text) {
+  return text.toLocaleLowerCase("vi").normalize("NFD")
+    .replace(/[\u0300-\u036f]/g,"").replace(/đ/g,"d");
+}
+function renderServices() {
+  const body = $("servicesBody");
+  body.replaceChildren();
+  const query = fold($("search").value.trim());
+  const group = $("groupFilter").value;
+  const items = state.services.filter(s=>
+    (!group || s.category === group) &&
+    fold([s.name,s.category,s.note].join(" ")).includes(query));
+  $("count").textContent = "(" + items.length + "/" + state.services.length + ")";
+  for (const service of items) {
+    const row = element("tr");
+    const description = element("td");
+    description.append(element("strong",service.name),
+      element("small",service.category));
+    if (service.note) description.append(element("small",service.note));
+    if (service.addon) description.append(element("small","Khoản cộng thêm"));
+    const price = element("td",
+      (service.addon ? "+ " : "") + rangeText(service.min,service.max),"money");
+    const buttons = element("td");
+    buttons.append(
+      action("Thêm vào dự toán",()=>{
+        if (state.quote.length >= 500) {
+          message("Mỗi dự toán có tối đa 500 dòng.",true);
+          return;
+        }
+        const next = clone(state);
+        next.quote.push({...service,id:newId(),qty:1});
+        save(next,"Đã thêm vào dự toán và lưu.");
+      }),
+      action("Sửa",()=>editService(service),"secondary"),
+      action("Xóa",()=>{
+        if (!confirm("Xóa dịch vụ “" + service.name + "” khỏi bảng giá? Các dòng dự toán đã thêm được giữ nguyên.")) return;
+        const next = clone(state);
+        next.services = next.services.filter(s=>s.id !== service.id);
+        if (save(next,"Đã xóa dịch vụ và lưu.") && editingId === service.id) resetForm();
+      },"danger")
+    );
+    row.append(description,element("td",service.unit),price,buttons);
+    body.append(row);
+  }
+  if (!items.length) {
+    const row = element("tr");
+    const cell = element("td","Không có dịch vụ phù hợp.");
+    cell.colSpan = 4;
+    row.append(cell);
+    body.append(row);
+  }
+}
+function numberInput(value,min,max,label,fn,className="quote-input") {
+  const input = document.createElement("input");
+  input.type = "number";
+  input.min = min;
+  input.max = max;
+  input.step = 1;
+  input.value = value;
+  input.className = className;
+  input.setAttribute("aria-label",label);
+  input.addEventListener("change",()=>{
+    const number = input.value.trim() === "" ? NaN : Number(input.value);
+    if (!input.checkValidity() || !Number.isSafeInteger(number) ||
+        number < min || number > max) {
+      input.value = value;
+      message("Giá trị không hợp lệ: " + label,true);
+      return;
+    }
+    fn(number);
+  });
+  return input;
+}
+function updateQuote(id,field,value) {
+  const next = clone(state);
+  const item = next.quote.find(s=>s.id===id);
+  if (!item) return;
+  item[field] = value;
+  if (item.max < item.min) {
+    message("Giá cao nhất phải lớn hơn hoặc bằng giá thấp nhất.",true);
+    renderQuote();
+    return;
+  }
+  if (!save(next,"Đã lưu thay đổi dự toán.")) renderQuote();
+}
+function renderQuote() {
+  const body = $("quoteBody");
+  body.replaceChildren();
+  let low = 0, high = 0;
+  state.quote.forEach(item=>{
+    const row = element("tr");
+    const name = element("td");
+    name.append(element("strong",item.name),
+      element("small",item.unit + (item.addon ? " · Khoản cộng thêm" : "")));
+    if (item.note) name.append(element("small",item.note));
+    const quantity = element("td");
+    quantity.append(numberInput(item.qty,1,1000,
+      "Số lượng " + item.name,v=>updateQuote(item.id,"qty",v),"quote-input qty"));
+    const minCell = element("td");
+    minCell.append(numberInput(item.min,0,LIMIT_PRICE,
+      "Giá thấp nhất " + item.name,v=>updateQuote(item.id,"min",v)));
+    const maxCell = element("td");
+    maxCell.append(numberInput(item.max,0,LIMIT_PRICE,
+      "Giá cao nhất " + item.name,v=>updateQuote(item.id,"max",v)));
+    const sum = element("td",rangeText(item.min*item.qty,item.max*item.qty),"money");
+    const remove = element("td",undefined,"no-print");
+    remove.append(action("Xóa",()=>{
+      const next = clone(state);
+      next.quote = next.quote.filter(s=>s.id!==item.id);
+      save(next,"Đã xóa dòng dự toán và lưu.");
+    },"danger"));
+    row.append(name,quantity,minCell,maxCell,sum,remove);
+    body.append(row);
+    low += item.min*item.qty;
+    high += item.max*item.qty;
+  });
+  if (!state.quote.length) {
+    const row = element("tr");
+    const cell = element("td","Chưa có dịch vụ trong dự toán.");
+    cell.colSpan = 6;
+    row.append(cell);
+    body.append(row);
+  }
+  $("total").textContent = "Tổng dự toán: " + rangeText(low,high);
+}
+function render() {
+  renderGroups();
+  renderServices();
+  renderQuote();
+}
+$("serviceForm").addEventListener("submit",event=>{
+  event.preventDefault();
+  const min = Number($("priceMin").value);
+  const max = $("priceMax").value.trim() === "" ? min : Number($("priceMax").value);
+  let service;
+  try {
+    service = normalizeService({
+      id:editingId || newId(),
+      category:$("category").value,
+      name:$("serviceName").value,
+      unit:$("unit").value,
+      min,max,addon:$("addon").value==="true",note:$("note").value
+    });
+  } catch (error) {
+    message(error.message + " Kiểm tra tên, đơn vị và khoảng giá.",true);
+    return;
+  }
+  const next = clone(state);
+  if (editingId) {
+    const index = next.services.findIndex(s=>s.id===editingId);
+    if (index < 0) {
+      message("Dịch vụ không còn tồn tại. Hãy hủy sửa và thử lại.",true);
+      return;
+    }
+    next.services[index] = service;
+  } else next.services.push(service);
+  if (save(next,"Đã lưu dịch vụ. Dự toán đã thêm trước đó giữ nguyên đơn giá.")) resetForm();
+});
+$("cancelBtn").addEventListener("click",resetForm);
+$("search").addEventListener("input",renderServices);
+$("groupFilter").addEventListener("change",renderServices);
+$("printBtn").addEventListener("click",()=>window.print());
+$("clearQuoteBtn").addEventListener("click",()=>{
+  if (!state.quote.length || !confirm("Xóa toàn bộ các dòng dự toán hiện tại?")) return;
+  const next = clone(state);
+  next.quote = [];
+  save(next,"Đã xóa dự toán và lưu.");
+});
+function download(text,filename) {
+  const blob = new Blob([text],{type:"application/json;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),10000);
+}
+$("exportBtn").addEventListener("click",()=>{
+  try {
+    if (storageBlocked) {
+      const raw = localStorage.getItem(KEY);
+      if (raw === null) {
+        download(JSON.stringify(state,null,2),"bang-gia-mau.json");
+      } else {
+        download(raw,"du-lieu-can-khoi-phuc.json");
+      }
+    } else {
+      download(JSON.stringify(state,null,2),"sao-luu-nha-khoa-" + Date.now() + ".json");
+    }
+    message("Đã yêu cầu trình duyệt tải bản sao lưu. Hãy kiểm tra thư mục tải xuống.");
+  } catch (error) {
+    message("Không tải được bản sao lưu: " + error.message,true);
+  }
+});
+$("importBtn").addEventListener("click",()=>$("importFile").click());
+$("importFile").addEventListener("change",async event=>{
+  const file = event.target.files[0];
+  event.target.value = "";
+  if (!file) return;
+  try {
+    if (file.size > 5000000) throw new Error("Tệp phải nhỏ hơn 5 MB.");
+    const next = validate(JSON.parse(await file.text()));
+    if (!confirm("Thay bảng giá và dự toán hiện tại bằng bản sao lưu gồm " +
+        next.services.length + " dịch vụ và " + next.quote.length + " dòng dự toán?")) return;
+    if (storageBlocked) {
+      if (!confirm("Dữ liệu cũ đang lỗi hoặc không đọc được. Bạn đã tải bản sao lưu và đồng ý thay dữ liệu cũ?")) return;
+      knownRaw = localStorage.getItem(KEY);
+    }
+    const wasBlocked = storageBlocked;
+    storageBlocked = false;
+    if (save(next,"Đã nhập bản sao lưu và lưu trong trình duyệt.")) resetForm();
+    else storageBlocked = wasBlocked;
+  } catch (error) {
+    message("Không nhập được bản sao lưu: " + error.message,true);
+  }
+});
+$("restoreBtn").addEventListener("click",()=>{
+  try {
+    const raw = localStorage.getItem(BACKUP_KEY);
+    if (raw === null) {
+      message("Chưa có bản lưu trước để khôi phục.",true);
+      return;
+    }
+    const next = validate(JSON.parse(raw));
+    if (!confirm("Khôi phục bảng giá và dự toán của lần lưu trước?")) return;
+    if (storageBlocked) {
+      message("Hãy tải dữ liệu cũ ra tệp trước, rồi dùng Nhập bản sao lưu hoặc Khôi phục bảng giá ban đầu.",true);
+      return;
+    }
+    if (save(next,"Đã khôi phục lần lưu trước.")) resetForm();
+  } catch (error) {
+    message("Không khôi phục được: " + error.message,true);
+  }
+});
+$("resetBtn").addEventListener("click",()=>{
+  if (!confirm("Thay bảng giá bằng dữ liệu Hello ban đầu và xóa dự toán? Hãy tải bản sao lưu trước nếu cần giữ dữ liệu.")) return;
+  try {
+    if (storageBlocked) {
+      if (!confirm("Bạn đã sao lưu dữ liệu cũ và đồng ý ghi đè để tiếp tục?")) return;
+      knownRaw = localStorage.getItem(KEY);
+    }
+    const wasBlocked = storageBlocked;
+    storageBlocked = false;
+    if (save(defaults(),"Đã khôi phục bảng giá ban đầu và xóa dự toán.")) resetForm();
+    else storageBlocked = wasBlocked;
+  } catch (error) {
+    message("Không khôi phục được: " + error.message,true);
+  }
+});
+window.addEventListener("storage",event=>{
+  if (event.key === KEY || event.key === null) {
+    message("Dữ liệu đã thay đổi ở thẻ trình duyệt khác. Hãy tải lại trang trước khi sửa tiếp.",true);
+  }
+});
+load();
+</script>
+</body>
+</html>
